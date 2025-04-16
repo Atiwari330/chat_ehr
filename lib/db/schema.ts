@@ -33,6 +33,20 @@ export const chat = pgTable('Chat', {
 
 export type Chat = InferSelectModel<typeof chat>;
 
+// New patient table definition
+export const patient = pgTable('Patient', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id),
+  name: varchar('name', { length: 255 }).notNull(),
+  dateOfBirth: timestamp('dateOfBirth').notNull(),
+  gender: varchar('gender', { length: 50 }).notNull(),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+});
+
+export type Patient = InferSelectModel<typeof patient>;
+
 // DEPRECATED: The following schema is deprecated and will be removed in the future.
 // Read the migration guide at https://github.com/vercel/ai-chatbot/blob/main/docs/04-migrate-to-parts.md
 export const messageDeprecated = pgTable('Message', {

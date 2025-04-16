@@ -26,6 +26,8 @@ import {
   vote,
   type DBMessage,
   type Chat,
+  patient,
+  type Patient,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 
@@ -416,6 +418,62 @@ export async function updateChatVisiblityById({
     return await db.update(chat).set({ visibility }).where(eq(chat.id, chatId));
   } catch (error) {
     console.error('Failed to update chat visibility in database');
+    throw error;
+  }
+}
+
+// Patient database queries
+export async function createPatient({
+  name,
+  dateOfBirth,
+  gender,
+  userId,
+}: {
+  name: string;
+  dateOfBirth: Date;
+  gender: string;
+  userId: string;
+}) {
+  try {
+    const newPatient = await db
+      .insert(patient)
+      .values({
+        name,
+        dateOfBirth,
+        gender,
+        userId,
+        createdAt: new Date(),
+      })
+      .returning();
+    return newPatient[0];
+  } catch (error) {
+    console.error('Failed to create patient in database', error);
+    throw error;
+  }
+}
+
+export async function getPatientById({ id }: { id: string }) {
+  try {
+    const [selectedPatient] = await db
+      .select()
+      .from(patient)
+      .where(eq(patient.id, id));
+    return selectedPatient;
+  } catch (error) {
+    console.error('Failed to get patient by id from database', error);
+    throw error;
+  }
+}
+
+export async function getPatientsByUserId({ userId }: { userId: string }) {
+  try {
+    return await db
+      .select()
+      .from(patient)
+      .where(eq(patient.userId, userId))
+      .orderBy(desc(patient.createdAt));
+  } catch (error) {
+    console.error('Failed to get patients by user id from database', error);
     throw error;
   }
 }
