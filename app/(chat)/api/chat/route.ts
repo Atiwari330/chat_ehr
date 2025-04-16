@@ -12,6 +12,7 @@ import {
   getChatById,
   saveChat,
   saveMessages,
+  getPatientById,
 } from '@/lib/db/queries';
 import {
   generateUUID,
@@ -34,16 +35,71 @@ export async function POST(request: Request) {
       id,
       messages,
       selectedChatModel,
+      patientId,
     }: {
       id: string;
       messages: Array<UIMessage>;
       selectedChatModel: string;
+      patientId?: string;
     } = await request.json();
 
     const session = await auth();
 
     if (!session || !session.user || !session.user.id) {
       return new Response('Unauthorized', { status: 401 });
+    }
+
+    // Patient context retrieval and security check
+    let patient = null;
+    let patientContextString = ''; // Initialize an empty context string
+
+    if (patientId) {
+      try {
+        // For debugging
+        console.log(`Attempting to fetch patient data for ID: ${patientId}`);
+
+        patient = await getPatientById({ id: patientId });
+
+        // For debugging
+        console.log('Fetched patient:', patient);
+
+        // Security check - verify patient exists and belongs to the current user
+        if (!patient || patient.userId !== session.user.id) {
+          // Security warning - attempted access to non-existent or unauthorized patient
+          console.warn(
+            `Security warning: User ${session.user.id} attempted to access patient ${patientId} ` +
+            `which ${!patient ? 'does not exist' : 'belongs to another user'}`
+          );
+          patient = null; // Ensure we don't use this patient data
+        } else {
+          console.log('Patient authorization successful');
+
+          // Format date of birth for better readability
+          const dob = new Date(patient.dateOfBirth);
+          const formattedDOB = dob.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          });
+
+          // Create a well-formatted patient context string
+          patientContextString = `
+Current Patient Context:
+Name: ${patient.name}
+Date of Birth: ${formattedDOB}
+Gender: ${patient.gender}
+Patient ID: ${patient.id}
+---
+Remember this patient context for your responses. Refer to the patient by name and consider their specific details when providing information.
+
+          `;
+
+          console.log('Created patient context string for prompt');
+        }
+      } catch (error) {
+        console.error('Error fetching patient data:', error);
+        patient = null;
+      }
     }
 
     const userMessage = getMostRecentUserMessage(messages);
@@ -81,9 +137,22 @@ export async function POST(request: Request) {
 
     return createDataStreamResponse({
       execute: (dataStream) => {
+        // Get the base system prompt
+        const baseSystemPrompt = systemPrompt({ selectedChatModel });
+        
+        // Create the final system prompt by prepending patient context if available
+        const finalSystemPrompt = patientContextString 
+          ? patientContextString + baseSystemPrompt 
+          : baseSystemPrompt;
+        
+        // For debugging
+        if (patientContextString) {
+          console.log('Using enhanced system prompt with patient context');
+        }
+        
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel }),
+          system: finalSystemPrompt, // Use the enhanced prompt when available
           messages,
           maxSteps: 5,
           experimental_activeTools:

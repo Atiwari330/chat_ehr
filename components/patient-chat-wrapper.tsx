@@ -65,6 +65,7 @@ export function PatientChatWrapper({
         selectedChatModel={selectedChatModel}
         selectedVisibilityType={selectedVisibilityType}
         isReadonly={isReadonly}
+        patientId={patient?.id} // Pass patient ID to Chat component if available
       />
     </div>
   );

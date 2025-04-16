@@ -22,12 +22,14 @@ export function Chat({
   selectedChatModel,
   selectedVisibilityType,
   isReadonly,
+  patientId,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
   selectedChatModel: string;
   selectedVisibilityType: VisibilityType;
   isReadonly: boolean;
+  patientId?: string;
 }) {
   const { mutate } = useSWRConfig();
 
@@ -43,7 +45,11 @@ export function Chat({
     reload,
   } = useChat({
     id,
-    body: { id, selectedChatModel: selectedChatModel },
+    body: { 
+      id, 
+      selectedChatModel: selectedChatModel,
+      patientId: patientId || undefined 
+    },
     initialMessages,
     experimental_throttle: 100,
     sendExtraMessageFields: true,
